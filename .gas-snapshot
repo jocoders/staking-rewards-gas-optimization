@@ -1,0 +1,7 @@
+CounterTest:testFuzz_SetNumber(uint256) (runs: 256, μ: 30977, ~: 31288)
+CounterTest:test_Increment() (gas: 31303)
+StakingRewardsTest:testGasGetReward() (gas: 317360)
+StakingRewardsTest:testGasStake() (gas: 116421)
+StakingRewardsTest:testGasWithdraw() (gas: 131865)
+StakingRewardsTest:testStake() (gas: 140934)
+StakingRewardsTest:testTotalSupply() (gas: 10529)
