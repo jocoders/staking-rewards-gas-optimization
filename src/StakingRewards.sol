@@ -7,7 +7,6 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 import {RewardsDistributionRecipient} from "./RewardsDistributionRecipient.sol";
 import {Pausable} from "./Pausable.sol";
 import {Owned} from "./Owned.sol";
-import {console} from "forge-std/console.sol";
 
 contract StakingRewards is Pausable, RewardsDistributionRecipient, ReentrancyGuard {
     using SafeERC20 for IERC20;
@@ -145,12 +144,10 @@ contract StakingRewards is Pausable, RewardsDistributionRecipient, ReentrancyGua
         lastUpdateTime = lastTimeRewardApplicable();
         if (account != address(0)) {
             rewards[account] = earned(account);
-            console.log("!!!!!!!!!!!!!!!!!!!!rewards[account]", earned(account));
             userRewardPerTokenPaid[account] = rewardPerTokenStored;
         }
         _;
     }
-
     /* ========== EVENTS ========== */
 
     event RewardAdded(uint256 reward);

@@ -21,33 +21,44 @@ contract StakingRewardsTest is Test {
     StakingRewards public stakingRewards;
     MockERC20 public rewardsToken;
     MockERC20 public stakingToken;
+    MockERC20 public recoverToken;
 
-    address owner = makeAddr("owner");
-    address rewardsDistribution = makeAddr("rewardsDistribution");
+    address owner = makeAddr("Owner");
+    address rewardsDistribution = makeAddr("RewardsDistribution");
     address Alice = makeAddr("Alice");
     address Bob = makeAddr("Bob");
 
     function setUp() public {
         rewardsToken = new MockERC20("Rewards", "RWD");
         stakingToken = new MockERC20("Staking", "STK");
-
+        recoverToken = new MockERC20("Recover", "RTR");
         stakingRewards = new StakingRewards(owner, rewardsDistribution, address(rewardsToken), address(stakingToken));
 
-        // Setup initial state for testing
         stakingToken.mint(Alice, 1000e18);
-        vm.prank(Alice);
-        stakingToken.approve(address(stakingRewards), type(uint256).max);
+        stakingToken.mint(Bob, 1000e18);
+        recoverToken.mint(owner, 1000e18);
+    }
+
+    function testGetRewardForDuration() public view {
+        uint256 duration = stakingRewards.getRewardForDuration();
+        console.log("duration", duration);
+    }
+
+    function testLastTimeRewardApplicable() public view {
+        uint256 lastTime = stakingRewards.lastTimeRewardApplicable();
+        assertEq(lastTime, 0, "lastTime should be 0");
+    }
+
+    function testSetPaused() public {
+        vm.startPrank(owner);
+        stakingRewards.setPaused(true);
+        vm.stopPrank();
+
+        assertEq(stakingRewards.paused(), true, "paused should be true");
     }
 
     function testStake() public {
         _stakeAlice(888e18);
-    }
-
-    function testGetReward() public {
-        _stakeAlice(888e18);
-
-        vm.warp(block.timestamp + 5 days);
-        stakingRewards.getReward();
     }
 
     function testWithdraw() public {
@@ -76,19 +87,11 @@ contract StakingRewardsTest is Test {
         );
     }
 
-    function _stakeAlice(uint256 amount) internal {
-        vm.startPrank(Alice);
-        stakingToken.approve(address(stakingRewards), type(uint256).max);
-        stakingRewards.stake(amount);
-        vm.stopPrank();
+    function testGetReward() public {
+        _stakeAlice(888e18);
 
-        uint256 totalSupply = stakingRewards.totalSupply();
-        console.log("totalSupply", totalSupply);
-        assertEq(totalSupply, amount, "totalSupply should be amount");
-
-        uint256 balanceOfAlice = stakingRewards.balanceOf(Alice);
-        console.log("balanceOfAlice", balanceOfAlice);
-        assertEq(balanceOfAlice, amount, "balanceOfAlice should be amount");
+        vm.warp(block.timestamp + 5 days);
+        stakingRewards.getReward();
     }
 
     function testExit() public {
@@ -111,5 +114,48 @@ contract StakingRewardsTest is Test {
             tokenBalBefore + stakingBalBefore,
             "tokenBalAfter should be tokenBalBefore + stakingBalBefore"
         );
+    }
+
+    function testNotifyRewardAmount(uint256 amount) public {
+        _stakeAlice(888e18);
+        vm.warp(block.timestamp + 5 days);
+        vm.startPrank(rewardsDistribution);
+        stakingRewards.notifyRewardAmount(amount);
+        vm.stopPrank();
+
+        uint256 rewardRate = stakingRewards.rewardRate();
+        assertEq(rewardRate, 0, "rewardRate should be 0");
+    }
+
+    function testRecoverERC20() public {
+        vm.startPrank(owner);
+        recoverToken.transfer(address(stakingRewards), 500e18);
+        assertEq(recoverToken.balanceOf(address(stakingRewards)), 500e18, "recoverToken balance should be 500e18");
+
+        stakingRewards.recoverERC20(address(recoverToken), 500e18);
+        vm.stopPrank();
+
+        assertEq(recoverToken.balanceOf(owner), 1000e18, "recoverToken balance should be 500e18");
+    }
+
+    function testSetRewardsDuration(uint256 _duration) public {
+        vm.startPrank(owner);
+        stakingRewards.setRewardsDuration(_duration);
+        vm.stopPrank();
+
+        assertEq(stakingRewards.rewardsDuration(), _duration, "rewardsDuration should be set");
+    }
+
+    function _stakeAlice(uint256 amount) internal {
+        vm.startPrank(Alice);
+        stakingToken.approve(address(stakingRewards), type(uint256).max);
+        stakingRewards.stake(amount);
+        vm.stopPrank();
+
+        uint256 totalSupply = stakingRewards.totalSupply();
+        assertEq(totalSupply, amount, "totalSupply should be amount");
+
+        uint256 balanceOfAlice = stakingRewards.balanceOf(Alice);
+        assertEq(balanceOfAlice, amount, "balanceOfAlice should be amount");
     }
 }
