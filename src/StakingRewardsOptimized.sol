@@ -110,7 +110,7 @@ contract StakingRewardsOptimized is Owned, ReentrancyGuard {
         assembly {
             _lastTime := and(timestamp(), 0xFFFFFFFF)
             let _slotStake := sload(SLOT_STAKE)
-            let _periodFinish := and(shr(160, slotStake), 0xFFFFFFFF)
+            let _periodFinish := and(shr(160, _slotStake), 0xFFFFFFFF)
 
             if iszero(lt(_lastTime, _periodFinish)) { _lastTime := _periodFinish }
         }
@@ -138,19 +138,19 @@ contract StakingRewardsOptimized is Owned, ReentrancyGuard {
         address _token;
 
         assembly {
-            let _offset := mload(0x40)
-            mstore(_offset, caller())
-            mstore(add(_offset, 0x20), SLOT_REWARDS)
+            let _mptr := mload(0x40)
+            mstore(_mptr, caller())
+            mstore(add(_mptr, 0x20), SLOT_REWARDS)
 
-            let _slot := keccak256(_offset, 0x40)
-            _amount := sload(_slot)
+            let _slotNum := keccak256(_mptr, 0x40)
+            _amount := sload(_slotNum)
 
             if iszero(_amount) { return(0, 0) }
-            sstore(_slot, 0)
+            sstore(_slotNum, 0)
             _token := sload(SLOT_REWARDS_TOKEN)
         }
 
-        _safeTransfer(token, amount, RewardPaidSig);
+        _safeTransfer(_token, _amount, RewardPaidSig);
     }
 
     /*✦✧✶✧✦.•:*¨¨*:•.✦✧✶✧✦.•:*¨¨*:•.✦✧✶✧✦.•:*¨¨*:•.✦✧✶✧✦*/
@@ -165,9 +165,9 @@ contract StakingRewardsOptimized is Owned, ReentrancyGuard {
 
             if iszero(iszero(eq(_pausedSaved, _paused))) { return(0, 0) }
 
-            let _offset := mload(0x40)
-            mstore(_offset, _pausedSaved)
-            log1(_offset, 0x20, PauseChangedSig)
+            let _mptr := mload(0x40)
+            mstore(_mptr, _pausedSaved)
+            log1(_mptr, 0x20, PauseChangedSig)
         }
 
         paused = _paused;
@@ -187,10 +187,10 @@ contract StakingRewardsOptimized is Owned, ReentrancyGuard {
         address _token;
 
         assembly {
-            let _offset := mload(0x40)
-            mstore(_offset, caller())
-            mstore(add(_offset, 0x20), SLOT_BALANCES)
-            let _slotBalances := keccak256(_offset, 0x40)
+            let _mptr := mload(0x40)
+            mstore(_mptr, caller())
+            mstore(add(_mptr, 0x20), SLOT_BALANCES)
+            let _slotBalances := keccak256(_mptr, 0x40)
             let _senderBal := sload(_slotBalances)
             let _newBal := add(_senderBal, amount)
 
@@ -206,11 +206,11 @@ contract StakingRewardsOptimized is Owned, ReentrancyGuard {
             let _tokenSlot := sload(SLOT_STAKE)
             _token := and(_tokenSlot, 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF)
 
-            mstore(_offset, 0x23b872dd)
-            mstore(add(_offset, 0x20), caller())
-            mstore(add(_offset, 0x40), address())
-            mstore(add(_offset, 0x60), amount)
-            let _success := call(gas(), token, 0, add(_offset, 0x1c), 0x80, 0, 0)
+            mstore(_mptr, 0x23b872dd)
+            mstore(add(_mptr, 0x20), caller())
+            mstore(add(_mptr, 0x40), address())
+            mstore(add(_mptr, 0x60), amount)
+            let _success := call(gas(), _token, 0, add(_mptr, 0x1c), 0x80, 0, 0)
 
             if iszero(_success) {
                 let _ptr := mload(0x40)
@@ -233,15 +233,15 @@ contract StakingRewardsOptimized is Owned, ReentrancyGuard {
         address _token;
 
         assembly {
-            let _offset := mload(0x40)
-            mstore(_offset, caller())
-            mstore(add(_offset, 0x20), SLOT_BALANCES)
-            let _slot := keccak256(_offset, 0x40)
-            let _senderBal := sload(_slot)
+            let _mptr := mload(0x40)
+            mstore(_mptr, caller())
+            mstore(add(_mptr, 0x20), SLOT_BALANCES)
+            let _slotNum := keccak256(_mptr, 0x40)
+            let _senderBal := sload(_slotNum)
             let _newBal := sub(_senderBal, amount)
 
             if iszero(iszero(gt(_newBal, _senderBal))) { revert(0, 0) }
-            sstore(_slot, _newBal)
+            sstore(_slotNum, _newBal)
 
             let _supply := sload(SLOT_TOTAL_SUPPLY)
             let _newSupply := sub(_supply, amount)
@@ -252,7 +252,7 @@ contract StakingRewardsOptimized is Owned, ReentrancyGuard {
             _token := and(_data, 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF)
         }
 
-        _safeTransfer(token, amount, WithdrawnSig);
+        _safeTransfer(_token, amount, WithdrawnSig);
     }
 
     function exit() external {
@@ -283,13 +283,13 @@ contract StakingRewardsOptimized is Owned, ReentrancyGuard {
 
             sstore(SLOT_REWARD_RATE, _rewardRate)
 
-            let _rate := div(rewardBal, _rewardsDuration)
+            let _rate := div(_rewardBal, _rewardsDuration)
             let _cond := or(gt(_rewardRate, _rate), eq(_rewardRate, _rate))
 
             if iszero(_cond) {
-                let _offset := mload(0x40)
-                mstore(_offset, RewardTooHighSelector)
-                revert(_offset, 0x04)
+                let _mptr := mload(0x40)
+                mstore(_mptr, RewardTooHighSelector)
+                revert(_mptr, 0x04)
             }
         }
 
@@ -320,17 +320,16 @@ contract StakingRewardsOptimized is Owned, ReentrancyGuard {
         uint256 _returnValue;
 
         assembly {
-            let _offset := mload(0x40)
+            let _mptr := mload(0x40)
 
-            mstore(_offset, 0xa9059cbb)
-            mstore(add(_offset, 0x20), caller())
-            mstore(add(_offset, 0x40), amount)
-            let _success := call(gas(), token, 0, add(_offset, 0x1c), 0x60, 0x00, 0x00)
+            mstore(_mptr, 0xa9059cbb)
+            mstore(add(_mptr, 0x20), caller())
+            mstore(add(_mptr, 0x40), amount)
+            let _success := call(gas(), token, 0, add(_mptr, 0x1c), 0x60, 0x00, 0x00)
 
             if iszero(_success) {
-                let _ptr := mload(0x40)
-                returndatacopy(_ptr, 0, returndatasize())
-                revert(_ptr, returndatasize())
+                returndatacopy(_mptr, 0, returndatasize())
+                revert(_mptr, returndatasize())
             }
             _returnSize := returndatasize()
             _returnValue := mload(0)
@@ -347,23 +346,23 @@ contract StakingRewardsOptimized is Owned, ReentrancyGuard {
         lastUpdateTime = lastTimeRewardApplicable();
 
         assembly {
-            let _offset := mload(0x40)
+            let _mptr := mload(0x40)
             sstore(SLOT_REWARD_PER_TOKEN_STORED, _rewardPerToken)
 
             if iszero(iszero(account)) {
-                mstore(_offset, account)
-                mstore(add(_offset, 0x20), SLOT_BALANCES)
-                let _slotBalances := keccak256(_offset, 0x40)
+                mstore(_mptr, account)
+                mstore(add(_mptr, 0x20), SLOT_BALANCES)
+                let _slotBalances := keccak256(_mptr, 0x40)
                 let _senderBalance := sload(_slotBalances)
 
-                mstore(_offset, account)
-                mstore(add(_offset, 0x20), SLOT_USER_REWARD_PER_TOKEN_PAID)
-                let _slotUserReward := keccak256(_offset, 0x40)
+                mstore(_mptr, account)
+                mstore(add(_mptr, 0x20), SLOT_USER_REWARD_PER_TOKEN_PAID)
+                let _slotUserReward := keccak256(_mptr, 0x40)
                 let _userRewardPerTokenPaid := sload(_slotUserReward)
 
-                mstore(_offset, caller())
-                mstore(add(_offset, 0x20), SLOT_REWARDS)
-                let _slotRewards := keccak256(_offset, 0x40)
+                mstore(_mptr, caller())
+                mstore(add(_mptr, 0x20), SLOT_REWARDS)
+                let _slotRewards := keccak256(_mptr, 0x40)
                 let _userRewards := sload(_slotRewards)
 
                 let _earned :=
@@ -376,26 +375,26 @@ contract StakingRewardsOptimized is Owned, ReentrancyGuard {
 
     function _log1(uint256 sig, uint256 value) internal {
         assembly {
-            let _offset := mload(0x40)
-            mstore(_offset, value)
-            log1(_offset, 0x20, sig)
+            let _mptr := mload(0x40)
+            mstore(_mptr, value)
+            log1(_mptr, 0x20, sig)
         }
     }
 
     function _log2(uint256 sig, uint256 value) internal {
         assembly {
-            let _offset := mload(0x40)
-            mstore(_offset, value)
-            log2(_offset, 0x20, sig, caller())
+            let _mptr := mload(0x40)
+            mstore(_mptr, value)
+            log2(_mptr, 0x20, sig, caller())
         }
     }
 
     function _require(bool condition, uint256 selector) internal pure {
         assembly {
             if iszero(condition) {
-                let _offset := mload(0x40)
-                mstore(_offset, selector)
-                revert(_offset, 0x04)
+                let _mptr := mload(0x40)
+                mstore(_mptr, selector)
+                revert(_mptr, 0x04)
             }
         }
     }
