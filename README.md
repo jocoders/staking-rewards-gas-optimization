@@ -29,18 +29,15 @@
 - Assigned slot numbers to important variables as constants.
 - **Benefit:** Yul code can access storage directly using slot numbers without hashing.
 
-### 4️⃣ & 5️⃣ Created Getters & Setters in Yul
+### 4️⃣ Created Getters in Yul
 
-- Rewrote getter and setter functions in Yul.
-- **Gas Improvement:** Direct slot access instead of using Solidity’s default storage handling.
-- **Example Getter in Yul:**
-  ```solidity
-  function getStoredValue() external view returns (uint256 result) {
-      assembly {
-          result := sload(0x01)  // Direct storage slot access
-      }
-  }
-  ```
+- Implemented getters using Yul with direct slot access.
+- **Gas Improvement:** Direct slot access instead of Solidity’s default storage handling.
+
+### 5️⃣ Created Setters in Yul
+
+- Implemented setters using Yul with direct slot assignments.
+- **Gas Improvement:** More efficient storage updates.
 
 ### 6️⃣ Moved Complex Computations to Yul
 
@@ -88,6 +85,7 @@
 | `getRewardForDuration`     | 4,892        | 4,624       | ↓ 5.5%      |
 | `lastTimeRewardApplicable` | 2,677        | 2,586       | ↓ 3.4%      |
 | `notifyRewardAmount`       | 78,412       | 47,857      | **↓ 38.9%** |
+| `paused`                   | 555          | 584         | ↑ 5.2%      |
 | `recoverERC20`             | 44,755       | 44,117      | ↓ 1.4%      |
 | `rewardRate`               | 515          | 493         | ↓ 4.3%      |
 | `setPaused`                | 52,683       | 30,535      | **↓ 42.0%** |
