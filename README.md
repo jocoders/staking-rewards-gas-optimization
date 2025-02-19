@@ -1,66 +1,106 @@
-## Foundry
+# Gas Optimization Audit Report - StakingRewards
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+## Overview
 
-Foundry consists of:
+- **Contract Audited:** StakingRewards.sol & StakingRewardsOptimized.sol
+- **Optimization Techniques Used:** Yul optimizations, slot packing, inline assembly, gas-efficient event logging, custom errors
+- **Audit Focus:** Reducing gas costs for deployment and function execution
+- **Findings Summary:**
+  - **Deployment Gas Reduced:** 2,160,624 -> 1,548,556 (↓ 28.3%)
+  - **Deployment Size Reduced:** 10,073 -> 7,349 (↓ 27.1%)
+  - **Gas Savings on Function Calls:** Significant reductions across multiple functions
 
--   **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
--   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
--   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
--   **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+## Optimizations & Gas Savings
 
-## Documentation
+### 1️⃣ Moved RewardsDistributionRecipient Logic Inside Contract
 
-https://book.getfoundry.sh/
+- Previously, the contract used an external `RewardsDistributionRecipient` contract.
+- Moved its logic directly inside `StakingRewards` to save external call gas.
+- **Gas Improvement:** Reduced the number of external calls, lowering gas usage.
 
-## Usage
+### 2️⃣ Packed Multiple Variables into a Single Storage Slot
 
-### Build
+- **Before:** Some variables were stored separately, increasing SLOAD costs.
+- **After:** Related variables were combined into a single slot when possible.
+- **Gas Improvement:** Less storage access, reducing SLOAD cost (cold -> warm reads).
 
-```shell
-$ forge build
-```
+### 3️⃣ Used Constant Slot Numbers for Variables
 
-### Test
+- Assigned slot numbers to important variables as constants.
+- **Benefit:** Yul code can access storage directly using slot numbers without hashing.
 
-```shell
-$ forge test
-```
+### 4️⃣ & 5️⃣ Created Getters & Setters in Yul
 
-### Format
+- Rewrote getter and setter functions in Yul.
+- **Gas Improvement:** Direct slot access instead of using Solidity’s default storage handling.
+- **Example Getter in Yul:**
+  ```solidity
+  function getStoredValue() external view returns (uint256 result) {
+      assembly {
+          result := sload(0x01)  // Direct storage slot access
+      }
+  }
+  ```
 
-```shell
-$ forge fmt
-```
+### 6️⃣ Moved Complex Computations to Yul
 
-### Gas Snapshots
+- **Before:** Solidity handled expensive calculations within functions.
+- **After:** Optimized using inline Yul.
+- **Gas Improvement:** Lower opcode execution costs, improved efficiency.
 
-```shell
-$ forge snapshot
-```
+### 7️⃣ Implemented Require Checks in Yul
 
-### Anvil
+- **Before:** Solidity `require(condition, "error message")`
+- **After:** Yul `if iszero(condition) { revert(...) }`
+- **Gas Improvement:** Custom revert logic costs less gas than default Solidity errors.
 
-```shell
-$ anvil
-```
+### 8️⃣ Optimized Event Logging with `log1`, `log2`
 
-### Deploy
+- Used **low-level event logging in Yul (`log1`, `log2`)**.
+- **Gas Improvement:** Direct event writing reduced the overhead of Solidity event emissions.
 
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
+### 9️⃣ Implemented Transfer Function in Yul
 
-### Cast
+- **Before:** Solidity’s `transfer()` was used.
+- **After:** Used Yul’s `call()` for gas efficiency.
+- **Gas Improvement:** Reduced external call gas cost.
 
-```shell
-$ cast <subcommand>
-```
+### 🔟 Implemented Update Function in Yul
 
-### Help
+- Similar optimization as the transfer function.
+- **Benefit:** Lower gas cost per execution.
 
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
+### 🔥 Implemented Custom Errors
+
+- **Before:** `require(condition, "error message")` (expensive)
+- **After:** Custom errors (`error InvalidState();` in Yul)
+- **Gas Improvement:** Saves gas because strings are expensive in `require()`.
+
+## 📊 Gas Usage Comparison (Before vs After)
+
+| Function Name              | Before (Avg) | After (Avg) | Improvement |
+| -------------------------- | ------------ | ----------- | ----------- |
+| **Deployment Cost**        | 2,160,624    | 1,548,556   | **↓ 28.3%** |
+| **Deployment Size**        | 10,073       | 7,349       | **↓ 27.1%** |
+| `balanceOf`                | 940          | 918         | ↓ 2.3%      |
+| `exit`                     | 69,364       | 62,120      | **↓ 10.4%** |
+| `getReward`                | 46,119       | 43,909      | **↓ 4.8%**  |
+| `getRewardForDuration`     | 4,892        | 4,624       | ↓ 5.5%      |
+| `lastTimeRewardApplicable` | 2,677        | 2,586       | ↓ 3.4%      |
+| `notifyRewardAmount`       | 78,412       | 47,857      | **↓ 38.9%** |
+| `recoverERC20`             | 44,755       | 44,117      | ↓ 1.4%      |
+| `rewardRate`               | 515          | 493         | ↓ 4.3%      |
+| `setPaused`                | 52,683       | 30,535      | **↓ 42.0%** |
+| `setRewardsDuration`       | 32,403       | 30,275      | ↓ 6.6%      |
+| `stake`                    | 129,789      | 123,515     | **↓ 4.8%**  |
+| `totalSupply`              | 500          | 471         | ↓ 5.8%      |
+| `withdraw`                 | 77,695       | 70,095      | **↓ 9.8%**  |
+
+## ✅ Conclusion
+
+- **Achieved a 28.3% reduction in deployment gas cost.**
+- **Reduced contract size by 27.1%.**
+- **Lowered function execution gas across all functions, especially `notifyRewardAmount` (-38.9%) and `setPaused` (-42.0%).**
+- **Major improvements from using Yul, packing storage, optimizing events, and reducing unnecessary gas costs.**
+
+These optimizations significantly improve the efficiency of `StakingRewardsOptimized.sol`, making it more gas-efficient for both deployment and function execution.
