@@ -2,7 +2,7 @@
 
 ## Overview
 
-- **Contract Audited:** StakingRewards.sol & StakingRewardsOptimized.sol
+- **Contract Audited:** StakingRewardsOptimized.sol
 - **Optimization Techniques Used:** Yul optimizations, slot packing, inline assembly, gas-efficient event logging, custom errors
 - **Audit Focus:** Reducing gas costs for deployment and function execution
 - **Findings Summary:**
