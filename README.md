@@ -27,7 +27,7 @@
 ### 3️⃣ Used Constant Slot Numbers for Variables
 
 - Assigned slot numbers to important variables as constants.
-- **Benefit:** Yul code can access storage directly using slot numbers without hashing.
+- **Benefit:** Yul code can access storage directly using slot numbers.
 
 ### 4️⃣ Created Getters in Yul
 
@@ -49,7 +49,7 @@
 
 - **Before:** Solidity `require(condition, "error message")`
 - **After:** Yul `if iszero(condition) { revert(...) }`
-- **Gas Improvement:** Custom revert logic costs less gas than default Solidity errors.
+- **Gas Improvement:** Saves gas because strings are expensive in `require()`.
 
 ### 8️⃣ Optimized Event Logging with `log1`, `log2`
 
@@ -66,12 +66,6 @@
 
 - Similar optimization as the transfer function.
 - **Benefit:** Lower gas cost per execution.
-
-### 🔥 Implemented Custom Errors
-
-- **Before:** `require(condition, "error message")` (expensive)
-- **After:** Custom errors (`error InvalidState();` in Yul)
-- **Gas Improvement:** Saves gas because strings are expensive in `require()`.
 
 ## 📊 Gas Usage Comparison (Before vs After)
 
